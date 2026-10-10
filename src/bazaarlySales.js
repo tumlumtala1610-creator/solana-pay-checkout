@@ -20,8 +20,8 @@ export async function getCheckoutItem(eventId, itemId) {
   if (item.status !== "approved" || item.eventId !== eventId) {
     throw new Error("That item is not available for sale at the selected event.");
   }
-  if (typeof item.price !== "number" || !Number.isFinite(item.price) || item.price < 0) {
-    throw new Error("That inventory item has an invalid USD price.");
+  if (typeof item.price !== "number" || !Number.isFinite(item.price) || Math.round(item.price * 100) <= 0) {
+    throw new Error("That inventory item must have a USD price of at least $0.01.");
   }
 
   return {
@@ -68,12 +68,12 @@ export async function recordConfirmedSale({ eventId, itemIds, payment }) {
       if (item.status !== "approved" || item.eventId !== eventId) {
         throw new Error(`Inventory item "${itemIds[index]}" is no longer available for this event.`);
       }
-      if (typeof item.price !== "number" || !Number.isFinite(item.price) || item.price < 0) {
-        throw new Error(`Inventory item "${itemIds[index]}" has an invalid USD price.`);
+      if (typeof item.price !== "number" || !Number.isFinite(item.price) || Math.round(item.price * 100) <= 0) {
+        throw new Error(`Inventory item "${itemIds[index]}" must have a USD price of at least $0.01.`);
       }
 
       const priceCents = Math.round(item.price * 100);
-      if (!Number.isSafeInteger(priceCents) || !Number.isSafeInteger(totalCents + priceCents)) {
+      if (priceCents <= 0 || !Number.isSafeInteger(priceCents) || !Number.isSafeInteger(totalCents + priceCents)) {
         throw new Error(`Inventory item "${itemIds[index]}" has an invalid USD price.`);
       }
       totalCents += priceCents;

@@ -1,0 +1,20 @@
+{
+  "name": "solana-pay-checkout-demo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@solana/pay": "^0.2.6",
+    "@solana/web3.js": "^1.98.4",
+    "bignumber.js": "^9.3.1",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7"
+  }
+}

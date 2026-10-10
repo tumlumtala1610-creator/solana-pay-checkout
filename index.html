@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solana Pay Checkout</title>
+  </head>
+  <body>
+    <main class="checkout">
+      <p class="eyebrow">DEVNET CHECKOUT</p>
+      <h1>Pay with Solana</h1>
+      <p class="intro">Create a payment request, scan it with a Devnet wallet, and wait for confirmation.</p>
+
+      <form id="payment-form" onsubmit="document.querySelector('#error').textContent = 'Checkout script did not start. Restart the dev server and reload this page.'; return false;">
+        <label>
+          Order ID
+          <input id="order-id" value="EVENT-001-ORDER-001" required />
+        </label>
+        <label>
+          Note for receipt (optional)
+          <textarea id="checkout-note" rows="2" placeholder="Optional note for this sale"></textarea>
+        </label>
+        <section class="cart-editor" aria-label="Items in this sale">
+          <h2>Items</h2>
+          <div id="items-container"></div>
+          <button id="add-item" class="secondary-button" type="button">Add item</button>
+          <p class="cart-total">Cart total (USD): <strong id="cart-total">$0.00</strong></p>
+        </section>
+        <label>
+          Demo payment amount (test SOL)
+          <input id="sol-amount" type="number" min="0.01" step="0.01" value="0.01" required />
+        </label>
+        <button type="submit">Create payment QR</button>
+      </form>
+
+      <section id="payment-panel" hidden>
+        <div id="qr-code" aria-label="Solana Pay QR code"></div>
+        <p id="status" class="status">Waiting for payment…</p>
+      </section>
+
+      <section id="result-panel" hidden>
+        <h2>Payment receipt</h2>
+        <dl id="receipt-details" class="details"></dl>
+        <p id="accounting-entry" class="accounting-entry"></p>
+        <div class="actions">
+          <a id="receipt-link" target="_blank" rel="noopener">View receipt</a>
+          <a id="explorer-link" target="_blank" rel="noopener">View transaction on Solana Explorer</a>
+        </div>
+      </section>
+
+      <section id="ledger-panel" class="ledger-panel">
+        <h2>Sales ledger</h2>
+        <p class="ledger-note">Saved in this browser. Demo USD accounting value; test SOL is recorded separately.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Order</th><th>Items</th><th>Revenue</th><th>Test SOL</th><th>Note</th><th>Journal entry</th><th>Action</th></tr></thead>
+            <tbody id="ledger-body"></tbody>
+          </table>
+        </div>
+        <p id="ledger-empty" class="ledger-note">No confirmed sales yet.</p>
+        <p id="revenue-total" class="revenue-total"></p>
+      </section>
+
+      <dialog id="ledger-editor">
+        <form id="ledger-edit-form">
+          <h2>Edit ledger sale</h2>
+          <label>Order ID <input id="edit-order-id" required /></label>
+          <label>Note <textarea id="edit-note" rows="2"></textarea></label>
+          <div id="edit-items-container"></div>
+          <button id="edit-add-item" class="secondary-button" type="button">Add item</button>
+          <p class="cart-total">Updated total (USD): <strong id="edit-total">$0.00</strong></p>
+          <p id="edit-error" class="error" role="alert"></p>
+          <div class="actions">
+            <button id="cancel-edit" class="secondary-button" type="button">Cancel</button>
+            <button type="submit">Save changes</button>
+          </div>
+        </form>
+      </dialog>
+
+      <p id="error" class="error" role="alert"></p>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+    <script>
+      window.addEventListener("error", (event) => {
+        const error = document.querySelector("#error");
+        if (error) error.textContent = `Checkout failed to load: ${event.message || "JavaScript error"}`;
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        const error = document.querySelector("#error");
+        if (error) error.textContent = `Checkout failed: ${event.reason?.message || event.reason || "Unknown error"}`;
+      });
+    </script>
+  </body>
+</html>

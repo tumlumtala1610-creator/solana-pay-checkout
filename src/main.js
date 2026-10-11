@@ -67,6 +67,8 @@ function updateCartTotal() {
 // Looks up the price/details for one item passed in from Bazaarly.
 async function resolveItem(row, itemId) {
   const status = row.querySelector(".item-status");
+  const title = row.querySelector(".item-title");
+  const price = row.querySelector(".item-price");
   row.dataset.valid = "false";
   row.dataset.loading = "true";
   status.dataset.kind = "";
@@ -79,7 +81,9 @@ async function resolveItem(row, itemId) {
     row.dataset.title = item.title;
     row.dataset.valid = "true";
     status.dataset.kind = "success";
-    status.textContent = `${item.title} · ${money(item.price)}`;
+    status.textContent = "";
+    title.textContent = item.title;
+    price.textContent = money(item.price);
     const preview = row.querySelector(".item-preview");
     preview.replaceChildren();
     if (item.imageUrl) {
@@ -118,12 +122,17 @@ function createItemRow(itemId) {
 
   const fields = document.createElement("div");
   fields.className = "item-fields";
+  const title = document.createElement("p");
+  title.className = "item-title";
   const status = document.createElement("p");
   status.className = "item-status";
   status.setAttribute("role", "status");
-  fields.append(status);
+  fields.append(title, status);
 
-  row.append(preview, fields);
+  const price = document.createElement("p");
+  price.className = "item-price";
+
+  row.append(preview, fields, price);
   itemsContainer.append(row);
   void resolveItem(row, itemId);
 }
@@ -264,6 +273,10 @@ form.addEventListener("submit", async (event) => {
     renderPaymentQR(request.url, qrElement);
     paymentPanel.hidden = false;
     statusElement.textContent = "Waiting for a confirmed Devnet payment…";
+    requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      paymentPanel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    });
 
     const signature = await waitForSolanaPayment(request);
     confirmedPayment = {

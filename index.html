@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bazaarly Solana Pay Checkout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <main class="checkout">
@@ -11,6 +17,7 @@
         <section class="cart-editor" aria-label="Order summary">
           <div class="cart-heading">
             <div>
+              <p class="eyebrow">BAZAARLY · CHECKOUT</p>
               <h1>Order summary</h1>
               <p id="checkout-event"></p>
             </div>
@@ -28,12 +35,11 @@
 
       <section id="payment-panel" hidden>
         <div class="panel-heading">
-          <p class="eyebrow">SOLANA DEVNET · TEST PAYMENT</p>
           <h2>Scan to pay</h2>
-          <p>This demo requests a fixed <strong>0.01 SOL</strong>. It is not converted from the USD item total.</p>
         </div>
         <div id="qr-code" aria-label="Solana Pay QR code"></div>
         <p id="status" class="status">Waiting for payment…</p>
+        <p class="payment-note">This demo requests a fixed <strong>0.01 SOL</strong> on Solana Devnet. It is not converted from the USD item total.</p>
       </section>
 
       <section id="result-panel" hidden>

@@ -8,9 +8,9 @@ This Vite app is the Devnet payment page launched from Bazaarly's kiosk.
 2. Set `VITE_MERCHANT_WALLET` in `.env` to the public key receiving Devnet test SOL.
 3. Start Bazaarly and this app in separate terminals. The checkout app listens on `http://localhost:5174/`.
 4. Set Bazaarly's `VITE_SOLANA_CHECKOUT_URL=http://localhost:5174/` in its `.env.local`.
-5. Select an upcoming event, add approved inventory in Bazaarly, then start Customer Display and select items to check out.
+5. Add approved inventory to an upcoming event in Bazaarly, then start Customer Display. Customers can select the event and available items from readable dropdowns.
 
-The Bazaarly kiosk passes its Firestore event ID and inventory document IDs in the checkout URL. The payment page reloads each item's title and USD price from the shared Firestore project; it does not accept a manually entered price. Standalone use also supports entering an event ID and item IDs directly.
+The Bazaarly kiosk passes its Firestore event ID and inventory document IDs in the checkout URL so the payment page can preselect the event and items. Those IDs are not shown to customers. The page loads upcoming event names and approved items assigned to the selected event; each item shows its name, current USD price, and photo when available. Standalone use uses the same event and item dropdowns. Prices come from Firestore and cannot be manually changed.
 
 ## Demo payment and sales behavior
 

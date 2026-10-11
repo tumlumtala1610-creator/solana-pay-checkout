@@ -1,7 +1,50 @@
 import {
-  doc, getDoc, increment, runTransaction,
+  collection, doc, getDoc, getDocs, increment, query, runTransaction, where,
 } from "firebase/firestore";
 import { db } from "./firebase.js";
+
+export async function getCheckoutEvents() {
+  const snapshot = await getDocs(query(
+    collection(db, "events"),
+    where("status", "==", "upcoming"),
+  ));
+  return snapshot.docs
+    .map(eventSnapshot => {
+      const event = eventSnapshot.data();
+      return {
+        eventId: eventSnapshot.id,
+        name: typeof event.name === "string" && event.name.trim() ? event.name.trim() : "Untitled event",
+        date: typeof event.date === "string" ? event.date : "",
+      };
+    })
+    .sort((left, right) => {
+      const leftDate = Date.parse(left.date);
+      const rightDate = Date.parse(right.date);
+      return (Number.isNaN(leftDate) ? Number.MAX_SAFE_INTEGER : leftDate) -
+        (Number.isNaN(rightDate) ? Number.MAX_SAFE_INTEGER : rightDate);
+    });
+}
+
+export async function getCheckoutItemsForEvent(eventId) {
+  if (!eventId) return [];
+  const snapshot = await getDocs(query(
+    collection(db, "inventory"),
+    where("eventId", "==", eventId),
+  ));
+  return snapshot.docs.flatMap(itemSnapshot => {
+    const item = itemSnapshot.data();
+    if (item.status !== "approved") return [];
+    if (typeof item.price !== "number" || !Number.isFinite(item.price) || Math.round(item.price * 100) <= 0) {
+      return [];
+    }
+    return [{
+      inventoryItemId: itemSnapshot.id,
+      title: typeof item.title === "string" && item.title.trim() ? item.title.trim() : "Untitled item",
+      price: Math.round(item.price * 100) / 100,
+      imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
+    }];
+  }).sort((left, right) => left.title.localeCompare(right.title));
+}
 
 export async function getCheckoutItem(eventId, itemId) {
   const [eventSnapshot, itemSnapshot] = await Promise.all([
@@ -13,7 +56,7 @@ export async function getCheckoutItem(eventId, itemId) {
     throw new Error("Select an upcoming event before adding items.");
   }
   if (!itemSnapshot.exists()) {
-    throw new Error(`No Bazaarly inventory item exists with ID "${itemId}".`);
+    throw new Error("That inventory item is no longer available.");
   }
 
   const item = itemSnapshot.data();
@@ -28,6 +71,7 @@ export async function getCheckoutItem(eventId, itemId) {
     inventoryItemId: itemSnapshot.id,
     title: typeof item.title === "string" && item.title ? item.title : "Untitled item",
     price: Math.round(item.price * 100) / 100,
+    imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
   };
 }
 
@@ -36,7 +80,7 @@ export async function recordConfirmedSale({ eventId, itemIds, payment }) {
     throw new Error("A Bazaarly event and at least one inventory item are required.");
   }
   if (new Set(itemIds).size !== itemIds.length) {
-    throw new Error("The checkout contains duplicate inventory item IDs.");
+    throw new Error("The same item cannot be added to an order more than once.");
   }
 
   const eventRef = doc(db, "events", eventId);
@@ -62,19 +106,19 @@ export async function recordConfirmedSale({ eventId, itemIds, payment }) {
     let totalCents = 0;
     const saleItems = itemSnapshots.map((itemSnapshot, index) => {
       if (!itemSnapshot.exists()) {
-        throw new Error(`Inventory item "${itemIds[index]}" no longer exists.`);
+        throw new Error("An item in this order is no longer available.");
       }
       const item = itemSnapshot.data();
       if (item.status !== "approved" || item.eventId !== eventId) {
-        throw new Error(`Inventory item "${itemIds[index]}" is no longer available for this event.`);
+        throw new Error("An item in this order is no longer available at this event.");
       }
       if (typeof item.price !== "number" || !Number.isFinite(item.price) || Math.round(item.price * 100) <= 0) {
-        throw new Error(`Inventory item "${itemIds[index]}" must have a USD price of at least $0.01.`);
+        throw new Error("An item in this order no longer has a valid USD price.");
       }
 
       const priceCents = Math.round(item.price * 100);
       if (priceCents <= 0 || !Number.isSafeInteger(priceCents) || !Number.isSafeInteger(totalCents + priceCents)) {
-        throw new Error(`Inventory item "${itemIds[index]}" has an invalid USD price.`);
+        throw new Error("An item in this order has an invalid USD price.");
       }
       totalCents += priceCents;
       return {

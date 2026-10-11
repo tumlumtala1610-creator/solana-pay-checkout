@@ -7,31 +7,51 @@
   </head>
   <body>
     <main class="checkout">
-      <p class="eyebrow">BAZAARLY · SOLANA DEVNET</p>
-      <h1>Confirm your checkout</h1>
-      <p class="intro">Item prices come from Bazaarly inventory in USD. This demo requests a fixed 0.01 test SOL.</p>
+      <header class="checkout-hero">
+        <p class="eyebrow">BAZAARLY · CUSTOMER CHECKOUT</p>
+        <h1>Good finds.<br />One easy checkout.</h1>
+        <p class="intro">Choose your event and the pieces you’re taking home.</p>
+      </header>
 
       <form id="payment-form">
-        <label>
-          Bazaarly event ID
-          <input id="event-id" autocomplete="off" required />
+        <label for="event-id">
+          Choose an event
+          <select id="event-id" required>
+            <option value="">Loading events…</option>
+          </select>
+          <small class="field-help">Only upcoming events are available for checkout.</small>
         </label>
         <section class="cart-editor" aria-label="Bazaarly inventory items">
-          <h2>Items</h2>
+          <div class="cart-heading">
+            <div>
+              <h2>Your items</h2>
+              <p>Choose from the items available at this event.</p>
+            </div>
+            <span id="item-count" class="item-count">0 items</span>
+          </div>
           <div id="items-container"></div>
-          <button id="add-item" class="secondary-button" type="button">Add item ID</button>
-          <p class="cart-total">Revenue total (USD): <strong id="cart-total">$0.00</strong></p>
+          <button id="add-item" class="secondary-button" type="button" disabled>Add another item</button>
+          <div class="cart-total">
+            <span>Items subtotal <small>USD</small></span>
+            <strong id="cart-total">$0.00</strong>
+          </div>
         </section>
-        <p id="checkout-context" class="ledger-note"></p>
-        <button id="pay-button" type="submit">Create Solana Pay QR</button>
+        <p id="checkout-context" class="checkout-context"></p>
+        <button id="pay-button" type="submit" disabled>Continue to payment</button>
       </form>
 
       <section id="payment-panel" hidden>
+        <div class="panel-heading">
+          <p class="eyebrow">SOLANA DEVNET · TEST PAYMENT</p>
+          <h2>Scan to pay</h2>
+          <p>This demo requests a fixed <strong>0.01 SOL</strong>. It is not converted from the USD item total.</p>
+        </div>
         <div id="qr-code" aria-label="Solana Pay QR code"></div>
         <p id="status" class="status">Waiting for payment…</p>
       </section>
 
       <section id="result-panel" hidden>
+        <p class="eyebrow">CHECKOUT COMPLETE</p>
         <h2>Payment receipt</h2>
         <dl id="receipt-details" class="details"></dl>
         <p id="accounting-entry" class="accounting-entry"></p>

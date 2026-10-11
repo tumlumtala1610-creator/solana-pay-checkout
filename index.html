@@ -7,30 +7,16 @@
   </head>
   <body>
     <main class="checkout">
-      <header class="checkout-hero">
-        <p class="eyebrow">BAZAARLY · CUSTOMER CHECKOUT</p>
-        <h1>Good finds.<br />One easy checkout.</h1>
-        <p class="intro">Choose your event and the pieces you’re taking home.</p>
-      </header>
-
       <form id="payment-form">
-        <label for="event-id">
-          Choose an event
-          <select id="event-id" required>
-            <option value="">Loading events…</option>
-          </select>
-          <small class="field-help">Only upcoming events are available for checkout.</small>
-        </label>
-        <section class="cart-editor" aria-label="Bazaarly inventory items">
+        <section class="cart-editor" aria-label="Order summary">
           <div class="cart-heading">
             <div>
-              <h2>Your items</h2>
-              <p>Choose from the items available at this event.</p>
+              <h1>Order summary</h1>
+              <p id="checkout-event"></p>
             </div>
             <span id="item-count" class="item-count">0 items</span>
           </div>
           <div id="items-container"></div>
-          <button id="add-item" class="secondary-button" type="button" disabled>Add another item</button>
           <div class="cart-total">
             <span>Items subtotal <small>USD</small></span>
             <strong id="cart-total">$0.00</strong>

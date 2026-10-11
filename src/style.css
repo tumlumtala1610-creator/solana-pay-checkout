@@ -125,6 +125,7 @@ summary:focus-visible {
   gap: 12px;
 }
 
+.cart-heading h1,
 .cart-heading h2,
 .panel-heading h2,
 #result-panel h2 {
@@ -159,7 +160,7 @@ summary:focus-visible {
 
 .item-row {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) auto;
+  grid-template-columns: 80px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   padding: 12px;

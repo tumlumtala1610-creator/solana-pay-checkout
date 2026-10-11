@@ -3,7 +3,6 @@ import "./style.css";
 import {
   getCheckoutEvents,
   getCheckoutItem,
-  getCheckoutItemsForEvent,
   recordConfirmedSale,
 } from "./bazaarlySales.js";
 
@@ -11,9 +10,7 @@ globalThis.Buffer ??= Buffer;
 
 const DEMO_SOL_AMOUNT = "0.01";
 const form = document.querySelector("#payment-form");
-const eventIdInput = document.querySelector("#event-id");
 const itemsContainer = document.querySelector("#items-container");
-const addItemButton = document.querySelector("#add-item");
 const payButton = document.querySelector("#pay-button");
 const paymentPanel = document.querySelector("#payment-panel");
 const qrElement = document.querySelector("#qr-code");
@@ -25,15 +22,14 @@ const accountingEntry = document.querySelector("#accounting-entry");
 const errorElement = document.querySelector("#error");
 const cartTotalElement = document.querySelector("#cart-total");
 const checkoutContext = document.querySelector("#checkout-context");
+const checkoutEventElement = document.querySelector("#checkout-event");
 const retrySaveButton = document.querySelector("#retry-save");
 
 let confirmedPayment = null;
 let isSaving = false;
 let saleSaved = false;
-let checkoutEvents = [];
-let availableItems = [];
-let eventLoad = 0;
-let itemRowCounter = 0;
+let eventId = "";
+let eventName = "";
 
 const money = (value) => new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -64,52 +60,20 @@ function updateCartTotal() {
 
   const hasPendingLookups = rows().some(row => row.dataset.loading === "true");
   const hasInvalidRows = rows().some(row => row.dataset.valid !== "true");
-  payButton.disabled = saleSaved || isSaving || !eventIdInput.value ||
+  payButton.disabled = saleSaved || isSaving || !eventId ||
     loadedItems.length === 0 || hasPendingLookups || hasInvalidRows;
-  addItemButton.disabled = saleSaved || isSaving || !eventIdInput.value || availableItems.length === 0;
 }
 
-function setCheckoutInputsDisabled(disabled) {
-  eventIdInput.disabled = disabled;
-  addItemButton.disabled = disabled;
-  for (const row of rows()) {
-    row.querySelector("[data-field='item-id']").disabled = disabled || availableItems.length === 0;
-    row.querySelector(".remove-item").disabled = disabled;
-  }
-}
-
-async function resolveItem(row) {
-  const input = row.querySelector("[data-field='item-id']");
+// Looks up the price/details for one item passed in from Bazaarly.
+async function resolveItem(row, itemId) {
   const status = row.querySelector(".item-status");
-  status.dataset.kind = "";
-  const itemId = input.value;
-  const eventId = eventIdInput.value;
-  const lookup = (row.lookup ?? 0) + 1;
-  row.lookup = lookup;
   row.dataset.valid = "false";
-  delete row.dataset.itemId;
-  delete row.dataset.price;
-  delete row.dataset.title;
-
-  if (!itemId) {
-    row.dataset.loading = "false";
-    status.textContent = "Choose an item to add it to your order.";
-    updateCartTotal();
-    return;
-  }
-  if (!eventId) {
-    row.dataset.loading = "false";
-    status.textContent = "Choose an event first.";
-    updateCartTotal();
-    return;
-  }
-
   row.dataset.loading = "true";
+  status.dataset.kind = "";
   status.textContent = "Confirming item and price…";
   updateCartTotal();
   try {
     const item = await getCheckoutItem(eventId, itemId);
-    if (row.lookup !== lookup) return;
     row.dataset.itemId = item.inventoryItemId;
     row.dataset.price = String(item.price);
     row.dataset.title = item.title;
@@ -131,18 +95,20 @@ async function resolveItem(row) {
       preview.textContent = "No image";
     }
   } catch (error) {
-    if (row.lookup !== lookup) return;
     status.dataset.kind = "error";
-    status.textContent = error instanceof Error ? error.message : "Could not load this item.";
+    status.textContent = error instanceof Error
+      ? error.message
+      : "This item is no longer available.";
+    errorElement.textContent =
+      "An item in your order could not be confirmed. Please return to Bazaarly and start checkout again.";
   } finally {
-    if (row.lookup === lookup) {
-      row.dataset.loading = "false";
-      updateCartTotal();
-    }
+    row.dataset.loading = "false";
+    updateCartTotal();
   }
 }
 
-function createItemRow(itemId = "", loading = false) {
+// Read-only row: no select, no remove button.
+function createItemRow(itemId) {
   const row = document.createElement("div");
   row.className = "item-row";
 
@@ -152,143 +118,50 @@ function createItemRow(itemId = "", loading = false) {
 
   const fields = document.createElement("div");
   fields.className = "item-fields";
-  const label = document.createElement("label");
-  label.textContent = "Choose an item";
-  const input = document.createElement("select");
-  input.required = true;
-  input.dataset.field = "item-id";
-  input.add(new Option(loading ? "Loading available items…" : "Select an item", ""));
-  for (const item of availableItems) {
-    input.add(new Option(`${item.title} · ${money(item.price)}`, item.inventoryItemId));
-  }
-  input.value = availableItems.some(item => item.inventoryItemId === itemId) ? itemId : "";
-  input.disabled = loading || availableItems.length === 0;
-  label.htmlFor = `item-select-${++itemRowCounter}`;
-  input.id = label.htmlFor;
-  label.append(input);
-
   const status = document.createElement("p");
   status.className = "item-status";
   status.setAttribute("role", "status");
-  status.textContent = loading
-    ? "Loading items for this event…"
-    : availableItems.length === 0
-      ? "No approved items are currently available at this event."
-      : "Choose an item to see it and its price.";
-  if (itemId && !input.value && !loading) {
-    status.textContent = "This item is no longer available at this event. Choose a replacement or remove it.";
-    status.dataset.kind = "error";
-  }
+  fields.append(status);
 
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.className = "secondary-button remove-item";
-  remove.textContent = "Remove";
-  remove.addEventListener("click", () => {
-    row.remove();
-    if (rows().length === 0) createItemRow();
-    updateCartTotal();
-  });
-
-  fields.append(label, status);
-  row.append(preview, fields, remove);
+  row.append(preview, fields);
   itemsContainer.append(row);
-  input.addEventListener("change", () => {
-    preview.replaceChildren();
-    preview.textContent = "Item photo";
-    status.dataset.kind = "";
-    void resolveItem(row);
-  });
-  if (itemId && input.value) void resolveItem(row);
-  updateCartTotal();
+  void resolveItem(row, itemId);
 }
 
-async function loadItemsForEvent(eventId, selectedItemIds = []) {
-  const currentLoad = ++eventLoad;
-  availableItems = [];
-  itemsContainer.replaceChildren();
-  createItemRow("", true);
-  errorElement.textContent = "";
-  if (!eventId) {
-    itemsContainer.replaceChildren();
-    createItemRow();
-    checkoutContext.textContent = "Choose an event to see its available items and current USD prices.";
-    updateCartTotal();
-    return;
-  }
-  checkoutContext.textContent = "Loading items available at this event…";
-  updateCartTotal();
-
-  try {
-    const items = await getCheckoutItemsForEvent(eventId);
-    if (currentLoad !== eventLoad) return;
-    availableItems = items;
-    itemsContainer.replaceChildren();
-    if (selectedItemIds.length > 0) {
-      selectedItemIds.forEach(itemId => createItemRow(itemId));
-      const unavailableCount = selectedItemIds.filter(itemId => (
-        !items.some(item => item.inventoryItemId === itemId)
-      )).length;
-      if (unavailableCount > 0) {
-        errorElement.textContent = `${unavailableCount} item(s) passed from Bazaarly are no longer available. Choose a replacement or remove the empty item row.`;
-      }
-    } else {
-      createItemRow();
-    }
-    checkoutContext.textContent = items.length > 0
-      ? `${items.length} item${items.length === 1 ? "" : "s"} currently available. Item prices are loaded from Bazaarly inventory in USD.`
-      : "There are no approved items available at this event right now.";
-  } catch (error) {
-    if (currentLoad !== eventLoad) return;
-    itemsContainer.replaceChildren();
-    createItemRow();
-    errorElement.textContent = error instanceof Error
-      ? `Could not load items for this event: ${error.message}`
-      : "Could not load items for this event.";
-    checkoutContext.textContent = "Try selecting the event again or contact the event organizer.";
-  }
-  updateCartTotal();
-}
-
-async function setItemsFromUrl() {
+// The event and items are fixed by the URL Bazaarly sends the customer to.
+async function loadCheckoutFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const requestedEventId = params.get("eventId") ?? "";
   const requestedItemIds = params.getAll("itemId");
-  eventIdInput.replaceChildren(new Option("Choose an event", ""));
-  eventIdInput.disabled = true;
-  checkoutContext.textContent = "Loading upcoming Bazaarly events…";
-  try {
-    checkoutEvents = await getCheckoutEvents();
-    for (const event of checkoutEvents) {
-      const date = event.date ? new Date(event.date) : null;
-      const dateLabel = date && !Number.isNaN(date.getTime())
-        ? ` · ${date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
-        : "";
-      const option = new Option(`${event.name}${dateLabel}`, event.eventId);
-      option.dataset.eventName = event.name;
-      eventIdInput.add(option);
-    }
-    eventIdInput.disabled = false;
 
-    if (requestedEventId && checkoutEvents.some(event => event.eventId === requestedEventId)) {
-      eventIdInput.value = requestedEventId;
-      await loadItemsForEvent(requestedEventId, requestedItemIds);
-    } else {
-      createItemRow();
-      if (requestedEventId) {
-        errorElement.textContent = "The event sent from Bazaarly is no longer available. Please choose an upcoming event.";
-      }
-      checkoutContext.textContent = checkoutEvents.length > 0
-        ? "Choose an event to see its available items and current USD prices."
-        : "There are no upcoming events available for checkout.";
+  if (!requestedEventId || requestedItemIds.length === 0) {
+    errorElement.textContent =
+      "No order was found. Please return to Bazaarly and start checkout again.";
+    updateCartTotal();
+    return;
+  }
+
+  checkoutContext.textContent = "Loading your order…";
+  try {
+    const checkoutEvents = await getCheckoutEvents();
+    const event = checkoutEvents.find(e => e.eventId === requestedEventId);
+    if (!event) {
+      errorElement.textContent =
+        "The event for this order is no longer available for checkout. Please return to Bazaarly.";
+      checkoutContext.textContent = "";
+      updateCartTotal();
+      return;
     }
+    eventId = event.eventId;
+    eventName = event.name;
+    checkoutEventElement.textContent = event.name;
+    checkoutContext.textContent = "Item prices are loaded from Bazaarly inventory in USD.";
+    requestedItemIds.forEach(itemId => createItemRow(itemId));
   } catch (error) {
-    eventIdInput.disabled = false;
-    createItemRow();
     errorElement.textContent = error instanceof Error
-      ? `Could not load upcoming events: ${error.message}`
-      : "Could not load upcoming events.";
-    checkoutContext.textContent = "Refresh the page to try loading events again.";
+      ? `Could not load your order: ${error.message}`
+      : "Could not load your order.";
+    checkoutContext.textContent = "Refresh the page to try again.";
   }
   updateCartTotal();
 }
@@ -331,7 +204,6 @@ async function saveConfirmedSale() {
       payment: confirmedPayment.payment,
     });
     saleSaved = true;
-    setCheckoutInputsDisabled(true);
     displayReceipt(confirmedPayment, sale);
     statusElement.textContent = "Payment confirmed and sale saved to Bazaarly.";
   } catch (error) {
@@ -349,10 +221,6 @@ async function saveConfirmedSale() {
   }
 }
 
-eventIdInput.addEventListener("change", () => {
-  void loadItemsForEvent(eventIdInput.value);
-});
-addItemButton.addEventListener("click", () => createItemRow());
 retrySaveButton.addEventListener("click", () => { void saveConfirmedSale(); });
 
 form.addEventListener("submit", async (event) => {
@@ -371,10 +239,6 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const eventId = eventIdInput.value;
-  const eventName = eventIdInput.selectedOptions[0]?.dataset.eventName ??
-    eventIdInput.selectedOptions[0]?.textContent ??
-    "Bazaarly event";
   const items = getValidItems();
   const allRowsValid = rows().length > 0 && rows().every(row => row.dataset.valid === "true");
   if (!eventId || !allRowsValid || items.length !== rows().length) {
@@ -382,12 +246,11 @@ form.addEventListener("submit", async (event) => {
     return;
   }
   if (new Set(items.map(item => item.inventoryItemId)).size !== items.length) {
-    errorElement.textContent = "The same item is selected more than once. Remove the duplicate before checkout.";
+    errorElement.textContent = "The same item is in this order more than once. Please return to Bazaarly and start checkout again.";
     return;
   }
 
   payButton.disabled = true;
-  setCheckoutInputsDisabled(true);
   payButton.textContent = "Waiting for payment…";
   try {
     const { createSolanaPaymentRequest, renderPaymentQR, waitForSolanaPayment } =
@@ -424,10 +287,9 @@ form.addEventListener("submit", async (event) => {
     errorElement.textContent = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
     console.error("Solana Pay checkout error:", error);
   } finally {
-    if (!confirmedPayment) setCheckoutInputsDisabled(false);
     updateCartTotal();
     if (!confirmedPayment) payButton.textContent = "Create Solana Pay QR";
   }
 });
 
-setItemsFromUrl();
+loadCheckoutFromUrl();
